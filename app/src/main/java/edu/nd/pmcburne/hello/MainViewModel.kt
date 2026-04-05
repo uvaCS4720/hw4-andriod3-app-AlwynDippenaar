@@ -1,41 +1,39 @@
 package edu.nd.pmcburne.hello
 
+import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import androidx.lifecycle.viewModelScope
+import edu.nd.pmcburne.hello.data.local.LocationEntity
+import edu.nd.pmcburne.hello.data.repository.LocationRepository
+import kotlinx.coroutines.launch
 
-data class MainUIState(
-    val counterValue: Int
-)
+class MainViewModel(private val repo: LocationRepository) : ViewModel() {
 
-class MainViewModel(
-    val initialCounterValue: Int = 0
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(MainUIState(initialCounterValue))
-    val uiState: StateFlow<MainUIState> = _uiState.asStateFlow()
+    var selectedTag by mutableStateOf("core")
+        private set
 
-    fun incrementCounter() {
-        _uiState.update{ currentState ->
-            currentState.copy(counterValue = _uiState.value.counterValue + 1)
+    var tags by mutableStateOf(listOf<String>())
+        private set
+
+    var locations by mutableStateOf(listOf<LocationEntity>())
+        private set
+
+    init {
+        viewModelScope.launch {
+            repo.syncIfNeeded()
+            tags = repo.getTags()
+            loadLocations()
         }
     }
 
-    fun decrementCounter() {
-        _uiState.update{ currentState ->
-            currentState.copy(counterValue = _uiState.value.counterValue - 1)
+    fun onTagSelected(tag: String) {
+        selectedTag = tag
+        viewModelScope.launch {
+            loadLocations()
         }
     }
 
-    fun resetCounter() {
-        _uiState.update { currentState ->
-            currentState.copy(counterValue = 0)
-        }
+    private suspend fun loadLocations() {
+        locations = repo.getLocationsByTag(selectedTag)
     }
-
-    val isDecrementEnabled: Boolean
-        get() = _uiState.value.counterValue > 0
-    val isResetEnabled: Boolean
-        get() = _uiState.value.counterValue > 0
 }
